@@ -1,7 +1,6 @@
 import os, uuid
 from flask import Flask, jsonify, request
 from azure.communication.identity import CommunicationIdentityClient
-from azure.communication.identity._shared.models import CommunicationTokenScope
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +18,7 @@ def get_token():
         return jsonify({"error": "storeName is required"}), 400
 
     user = identity_client.create_user()
-    token_response = identity_client.get_token(user, scopes=[CommunicationTokenScope.VOIP, CommunicationTokenScope.CHAT])
+    token_response = identity_client.issue_token(user, scopes=["voip", "chat"])
 
     group_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(store_name)))
 
