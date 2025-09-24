@@ -1,6 +1,7 @@
 import os, uuid
 from flask import Flask, jsonify, request
 from azure.communication.identity import CommunicationIdentityClient
+from azure.communication.identity._shared.models import CommunicationTokenScope
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,14 +13,15 @@ identity_client = CommunicationIdentityClient.from_connection_string(ACS_CONNECT
 @app.route("/get_token", methods=["POST"])
 def get_token():
     data = request.json
-    store_name = data.get("storeName")  # ได้จากปุ่มกดในแอป
+    store_name = data.get("storeName")
 
-    # สร้าง user + token
+    if not store_name:
+        return jsonify({"error": "storeName is required"}), 400
+
     user = identity_client.create_user()
-    token_response = identity_client.issue_token(user, scopes=["voip", "chat"])
+    token_response = identity_client.get_token(user, scopes=[CommunicationTokenScope.VOIP, CommunicationTokenScope.CHAT])
 
-    # ใช้ UUID5 แปลงชื่อร้าน → groupId
-    group_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, store_name))
+    group_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(store_name)))
 
     return jsonify({
         "userId": user.id,
