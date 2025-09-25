@@ -1,6 +1,6 @@
 import requests
 
-url = "https://acs-e9lu.onrender.com/get_token"
+url = "https://acs-e9lu.onrender.com/get_token" 
 payload = {"storeName": "TA"}
 headers = {"Content-Type": "application/json"}
 

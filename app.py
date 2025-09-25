@@ -32,7 +32,7 @@ def get_token():
         return jsonify({
             "userId": user_id,
             "token": token_response.token,
-            "expiresOn": token_response.expires_on.isoformat(),
+            "expiresOn": str(token_response.expires_on),
             "groupId": group_id
         })
     except Exception as e:
