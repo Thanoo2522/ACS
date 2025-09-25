@@ -1,14 +1,16 @@
 import os
 import uuid
 from flask import Flask, jsonify, request
-from dotenv import load_dotenv
 from azure.communication.identity import CommunicationIdentityClient
-
-load_dotenv()
 
 app = Flask(__name__)
 
+# ดึงค่า ACS_CONNECTION_STRING จาก Environment Variables ของ Render
 ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
+
+if not ACS_CONNECTION_STRING:
+    raise Exception("ACS_CONNECTION_STRING not found in environment variables")
+
 identity_client = CommunicationIdentityClient.from_connection_string(ACS_CONNECTION_STRING)
 
 @app.route("/get_token", methods=["POST"])
@@ -34,4 +36,4 @@ def get_token():
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
