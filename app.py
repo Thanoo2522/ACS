@@ -3,12 +3,12 @@ import uuid
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from azure.communication.identity import CommunicationIdentityClient
-from flask_cors import CORS
+#from flask_cors import CORS
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # อนุญาตให้ทุก domain เข้าถึง
+#CORS(app)  # อนุญาตให้ทุก domain เข้าถึง
 ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
 if not ACS_CONNECTION_STRING:
     raise ValueError("❌ Environment variable 'ACS_CONNECTION_STRING' is not set.")
