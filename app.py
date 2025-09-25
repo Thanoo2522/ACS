@@ -1,7 +1,8 @@
-import os, uuid
+import os
+import uuid
 from flask import Flask, jsonify, request
-from azure.communication.identity import CommunicationIdentityClient
 from dotenv import load_dotenv
+from azure.communication.identity import CommunicationIdentityClient
 
 load_dotenv()
 
@@ -23,12 +24,14 @@ def get_token():
 
     group_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(store_name)))
 
+    user_id = getattr(user, "identifier", None) or user.properties.get("id")
+
     return jsonify({
-        "userId": user.identifier,
+        "userId": user_id,
         "token": token_response.token,
         "expiresOn": token_response.expires_on.isoformat(),
         "groupId": group_id
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
