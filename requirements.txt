@@ -1,4 +1,4 @@
-Flask
-gunicorn
-python-dotenv
-azure-communication-identity
+gunicorn 
+Flask==2.3.3
+python-dotenv==1.0.0
+agora-token-builder==1.0.0
