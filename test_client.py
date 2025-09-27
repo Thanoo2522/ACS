@@ -1,15 +1,17 @@
 import requests
 
-# 👉 เปลี่ยนให้เป็น endpoint ที่ Flask (Render) คุณทำสำหรับ Agora
-url = "https://acs-e9lu.onrender.com//get_token"
-
+url = "https://acs-e9lu.onrender.com/get_token"  # ✅ แก้ / ให้ถูก
 payload = {
-    "channelName": "TA",   # ใช้ channelName แทน storeName
-    "uid": 123             # สามารถ fix หรือสุ่ม uid ก็ได้
+    "channelName": "TA",
+    "uid": 123
 }
 headers = {"Content-Type": "application/json"}
 
 response = requests.post(url, json=payload, headers=headers)
 
 print("Status Code:", response.status_code)
-print("Response JSON:", response.json())  # ใช้ json() จะอ่านง่ายกว่า
+
+try:
+    print("Response JSON:", response.json())
+except requests.exceptions.JSONDecodeError:
+    print("Response Text:", response.text)  # ถ้าไม่ใช่ JSON จะแสดงข้อความดิบ
