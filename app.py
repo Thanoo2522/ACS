@@ -1,4 +1,5 @@
 import os
+import time   # ✅ ต้อง import time
 import uuid
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
@@ -13,7 +14,8 @@ AGORA_APP_CERTIFICATE = os.getenv("AGORA_APP_CERTIFICATE")
 if not AGORA_APP_ID or not AGORA_APP_CERTIFICATE:
     raise ValueError("❌ AGORA_APP_ID หรือ AGORA_APP_CERTIFICATE ไม่ถูกตั้งค่าใน .env")
 
-app.route("/get_token", methods=["POST"])
+# ✅ ต้องใส่ @ ข้างหน้า
+@app.route("/get_token", methods=["POST"])
 def get_token():
     try:
         data = request.json
@@ -41,3 +43,7 @@ def get_token():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
