@@ -2,19 +2,16 @@ import os
 import uuid
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
-from azure.communication.identity import CommunicationIdentityClient
-#from flask_cors import CORS
+from agora_token_builder import RtcTokenBuilder
 
 load_dotenv()
 
 app = Flask(__name__)
-#CORS(app)  # อนุญาตให้ทุก domain เข้าถึง
-ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
-if not ACS_CONNECTION_STRING:
-    raise ValueError("❌ Environment variable 'ACS_CONNECTION_STRING' is not set.")
 
-identity_client = CommunicationIdentityClient.from_connection_string(ACS_CONNECTION_STRING)
-
+AGORA_APP_ID = os.getenv("AGORA_APP_ID")
+AGORA_APP_CERTIFICATE = os.getenv("AGORA_APP_CERTIFICATE")
+if not AGORA_APP_ID or not AGORA_APP_CERTIFICATE:
+    raise ValueError("❌ AGORA_APP_ID หรือ AGORA_APP_CERTIFICATE ไม่ถูกตั้งค่าใน .env")
 
 @app.route("/get_token", methods=["POST"])
 def get_token():
@@ -25,28 +22,38 @@ def get_token():
         if not store_name:
             return jsonify({"error": "storeName is required"}), 400
 
-        # สร้าง user ใหม่
-        user = identity_client.create_user()
+        # สร้าง channel name จาก storeName
+        channel_name = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(store_name)))
 
-        # ขอ token สำหรับ user
-        token_response = identity_client.get_token(user, scopes=["voip", "chat"])
+        # สร้าง user ID (random หรือจาก client)
+        uid = int(uuid.uuid4().int & 0xFFFFFFFF)
 
-        # สร้าง group_id จาก storeName
-        group_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(store_name)))
+        # เวลา token หมดอายุ (เช่น 1 ชั่วโมง)
+        expire_time_in_seconds = 3600
+        current_timestamp = int(uuid.uuid1().time / 1e7)  # Timestamp ปัจจุบัน
+        privilege_expire_time = current_timestamp + expire_time_in_seconds
 
-        # ดึง user_id จาก user object
-        user_id = getattr(user, "identifier", None) or user.properties.get("id")
+        # สร้าง Agora RTC token
+        token = RtcTokenBuilder.buildTokenWithUid(
+            AGORA_APP_ID,
+            AGORA_APP_CERTIFICATE,
+            channel_name,
+            uid,
+            role=RtcTokenBuilder.Role_Attendee,
+            privilege_expire_time=privilege_expire_time
+        )
 
-        print(f"[DEBUG] user_id: {user_id}")
-        print(f"[DEBUG] token: {token_response.token}")
-        print(f"[DEBUG] expires_on: {token_response.expires_on}")
+        print(f"[DEBUG] channel_name: {channel_name}")
+        print(f"[DEBUG] uid: {uid}")
+        print(f"[DEBUG] token: {token}")
 
         return jsonify({
-            "userId": user_id,
-            "token": token_response.token,
-            "expiresOn": token_response.expires_on,  # แก้ตรงนี้ ไม่ใช้ .isoformat()
-            "groupId": group_id
+            "channelName": channel_name,
+            "uid": uid,
+            "token": token,
+            "expiresOn": privilege_expire_time
         })
+
     except Exception as e:
         print(f"[ERROR] {e}")
         return jsonify({"error": str(e)}), 500
