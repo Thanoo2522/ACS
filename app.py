@@ -1,44 +1,46 @@
 import os
-import time   # ✅ ต้อง import time
+import time
 import uuid
+import jwt
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
-from agora_token_builder import RtcTokenBuilder
 
 load_dotenv()
 
 app = Flask(__name__)
 
-AGORA_APP_ID = os.getenv("AGORA_APP_ID")
-AGORA_APP_CERTIFICATE = os.getenv("AGORA_APP_CERTIFICATE")
-if not AGORA_APP_ID or not AGORA_APP_CERTIFICATE:
-    raise ValueError("❌ AGORA_APP_ID หรือ AGORA_APP_CERTIFICATE ไม่ถูกตั้งค่าใน .env")
+VIDEOSDK_API_KEY = os.getenv("VIDEOSDK_API_KEY")
+VIDEOSDK_SECRET_KEY = os.getenv("VIDEOSDK_SECRET_KEY")
 
-# ✅ ต้องใส่ @ ข้างหน้า
+if not VIDEOSDK_API_KEY or not VIDEOSDK_SECRET_KEY:
+    raise ValueError("❌ VIDEOSDK_API_KEY หรือ VIDEOSDK_SECRET_KEY ไม่ถูกตั้งค่าใน .env")
+
+
 @app.route("/get_token", methods=["POST"])
 def get_token():
     try:
         data = request.json
-        channel_name = data.get("channelName")
-        uid = data.get("uid", 0)
+        room_id = data.get("roomId", str(uuid.uuid4()))  # ถ้าไม่มี roomId ให้สร้างอัตโนมัติ
+        participant_id = data.get("participantId", str(uuid.uuid4()))
 
-        if not channel_name:
-            return jsonify({"error": "channelName is required"}), 400
-
-        expiration_time_in_seconds = 3600  # token อายุ 1 ชม.
+        # เวลาหมดอายุของ Token (วินาที)
+        expiration_time_in_seconds = 3600
         current_timestamp = int(time.time())
-        privilege_expired_ts = current_timestamp + expiration_time_in_seconds
 
-        # สร้าง RTC token
-        token = RtcTokenBuilder.buildTokenWithUid(
-            AGORA_APP_ID, AGORA_APP_CERTIFICATE,
-            channel_name, uid, 1, privilege_expired_ts
-        )
+        payload = {
+            "apikey": VIDEOSDK_API_KEY,
+            "roomId": room_id,
+            "participantId": participant_id,
+            "iat": current_timestamp,
+            "exp": current_timestamp + expiration_time_in_seconds
+        }
+
+        token = jwt.encode(payload, VIDEOSDK_SECRET_KEY, algorithm="HS256")
 
         return jsonify({
-            "appId": AGORA_APP_ID,
-            "channelName": channel_name,
-            "uid": uid,
+            "apiKey": VIDEOSDK_API_KEY,
+            "roomId": room_id,
+            "participantId": participant_id,
             "token": token
         })
     except Exception as e:
