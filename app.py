@@ -2,50 +2,77 @@ import os
 import time
 import uuid
 import jwt
+import requests
 from flask import Flask, jsonify, request
-from dotenv import load_dotenv
 
-load_dotenv()
-
+# -------------------------------
+# Flask app
+# -------------------------------
 app = Flask(__name__)
 
+# -------------------------------
+# อ่านค่า ENV จาก Render (ไม่ต้องใช้ .env เพราะ Render set ใน Dashboard)
+# -------------------------------
 VIDEOSDK_API_KEY = os.getenv("VIDEOSDK_API_KEY")
 VIDEOSDK_SECRET_KEY = os.getenv("VIDEOSDK_SECRET_KEY")
 
 if not VIDEOSDK_API_KEY or not VIDEOSDK_SECRET_KEY:
-    raise ValueError("❌ VIDEOSDK_API_KEY หรือ VIDEOSDK_SECRET_KEY ไม่ถูกตั้งค่าใน .env")
+    raise Exception("❌ VIDEOSDK_API_KEY or VIDEOSDK_SECRET_KEY not found in environment variables")
 
+# -------------------------------
+# ฟังก์ชันสร้าง JWT token
+# -------------------------------
+def generate_token():
+    payload = {
+        "apikey": VIDEOSDK_API_KEY,
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 60 * 60 * 24,  # อายุ token 24 ชั่วโมง
+        "jti": str(uuid.uuid4()),
+    }
+    token = jwt.encode(payload, VIDEOSDK_SECRET_KEY, algorithm="HS256")
+    return token
 
-@app.route("/get_token", methods=["POST"])
+# -------------------------------
+# API: GET token
+# -------------------------------
+@app.route("/get-token", methods=["GET"])
 def get_token():
+    token = generate_token()
+    return jsonify({"token": token})
+
+# -------------------------------
+# API: Create room
+# -------------------------------
+@app.route("/create-room", methods=["POST"])
+def create_room():
+    token = generate_token()
+    url = "https://api.videosdk.live/v2/rooms"
+    headers = {
+        "Authorization": token,
+        "Content-Type": "application/json"
+    }
+    data = {"region": "sg001"}  # เลือก region ใกล้สุด
+    response = requests.post(url, headers=headers, json=data)
+
+    return jsonify(response.json()), response.status_code
+
+# -------------------------------
+# API: Validate token
+# -------------------------------
+@app.route("/validate", methods=["POST"])
+def validate():
+    token = request.json.get("token")
     try:
-        data = request.json
-        room_id = data.get("roomId", str(uuid.uuid4()))  # ถ้าไม่มี roomId ให้สร้างอัตโนมัติ
-        participant_id = data.get("participantId", str(uuid.uuid4()))
+        decoded = jwt.decode(token, VIDEOSDK_SECRET_KEY, algorithms=["HS256"])
+        return jsonify({"valid": True, "decoded": decoded})
+    except jwt.ExpiredSignatureError:
+        return jsonify({"valid": False, "error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"valid": False, "error": "Invalid token"}), 401
 
-        # เวลาหมดอายุของ Token (วินาที)
-        expiration_time_in_seconds = 3600
-        current_timestamp = int(time.time())
-
-        payload = {
-            "apikey": VIDEOSDK_API_KEY,
-            "roomId": room_id,
-            "participantId": participant_id,
-            "iat": current_timestamp,
-            "exp": current_timestamp + expiration_time_in_seconds
-        }
-
-        token = jwt.encode(payload, VIDEOSDK_SECRET_KEY, algorithm="HS256")
-
-        return jsonify({
-            "apiKey": VIDEOSDK_API_KEY,
-            "roomId": room_id,
-            "participantId": participant_id,
-            "token": token
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
+# -------------------------------
+# Main สำหรับ local debug
+# -------------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))  # Render จะส่ง PORT มาใน env
+    app.run(debug=True, host="0.0.0.0", port=port)
